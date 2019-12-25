@@ -1,9 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -34,11 +35,9 @@ func main() {
 		fmt.Printf("creating list of files is fail. err: %v\n", err)
 		os.Exit(4)
 	}
-	time1 := time.Since(start)
 	resultChan := processFileList(fileList)
 	resultFreqMap := make(map[string]int)
 
-	time2 := time.Since(start)
 	var sum int
 	for fm := range resultChan {
 		for k, v := range fm {
@@ -57,9 +56,6 @@ func main() {
 		os.Exit(5)
 	}
 	fmt.Println(string(prettyRes))
-	fmt.Println("Sum:", sum)
-	fmt.Println("Get file list time:", time1)
-	fmt.Println("Process file list time:", time2)
 	fmt.Println("All time:", time.Since(start))
 }
 
@@ -100,16 +96,21 @@ func processFileList(fileList []string) chan map[string]int {
 }
 
 func processFile(path string) (map[string]int, error) {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	return calculateCharsFrequency(file), nil
 }
 
-func calculateCharsFrequency(file []byte) map[string]int {
+func calculateCharsFrequency(file io.Reader) map[string]int {
+	reader := bufio.NewReaderSize(file, 512)
 	charsFrequency := make(map[string]int, 0)
-	for _, bChar := range file {
+	for {
+		bChar, err := reader.ReadByte()
+		if err != nil {
+			break
+		}
 		char := string(bChar)
 		if _, ok := charsFrequency[char]; !ok {
 			charsFrequency[char] = 0
@@ -122,7 +123,7 @@ func calculateCharsFrequency(file []byte) map[string]int {
 func do(path string, resultChan chan map[string]int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	freqMap, err :=  processFile(path)
+	freqMap, err := processFile(path)
 	if err != nil {
 		// if get corrupted file - skip it
 		fmt.Printf("processing %v fail. err: %v\n", path, err)
