@@ -104,7 +104,7 @@ func processFile(path string) (map[string]int, error) {
 }
 
 func calculateCharsFrequency(file io.Reader) map[string]int {
-	reader := bufio.NewReaderSize(file, 512)
+	reader := bufio.NewReaderSize(file, 1024*4)
 	charsFrequency := make(map[string]int, 0)
 	for {
 		bChar, err := reader.ReadByte()
